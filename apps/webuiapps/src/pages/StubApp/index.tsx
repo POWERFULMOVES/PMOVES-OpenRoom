@@ -7,8 +7,10 @@
  * StubApp displays the manifest metadata so the operator can see what's
  * declared and which services would normally be active.
  *
- * Reads the app's displayName + appName from the window via windowManager
- * state. Stage discipline is read from the document root's data-pmoves-stage
+ * Receives its own appId as a prop from AppWindow (chatgpt-codex P2 fix:
+ * before, every StubApp instance scanned windowManager for the topmost
+ * window, so multiple PMOVES windows all showed the same metadata).
+ * Stage discipline is read from the document root's data-pmoves-stage
  * attribute (set by the room adapter) and shown as a banner.
  *
  * Not interactive: clicking the "Open live service" button is a no-op in the
@@ -18,7 +20,6 @@
 
 import React from 'react';
 import { getAppDisplayName } from '@/lib/appRegistry';
-import { getWindows } from '@/lib/windowManager';
 
 const STAGE_BANNERS: Record<string, { color: string; text: string }> = {
   rehearsal: { color: '#F59E0B', text: 'PREVIEW — not connected to live services' },
@@ -27,14 +28,11 @@ const STAGE_BANNERS: Record<string, { color: string; text: string }> = {
   live: { color: '#10B981', text: 'LIVE' },
 };
 
-const StubApp: React.FC = () => {
-  // Find this window's appId via the rendered title's lookup. We can't pass
-  // appId through React props without restructuring AppWindow; instead we
-  // scan windowManager for the active (non-minimized) window whose title
-  // matches. If multiple match, the user-visible window is the topmost.
-  const allWindows = typeof window !== 'undefined' ? getWindows() : [];
-  const top = [...allWindows].sort((a, b) => b.zIndex - a.zIndex)[0];
-  const appId = top?.appId ?? -1;
+const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
+  // appId is the window's own id (passed by AppWindow). No more scanning
+  // windowManager for the topmost — every StubApp now shows its own
+  // metadata. chatgpt-codex P2: this restores the invariant that
+  // distinct PMOVES windows have distinct identities.
   const displayName = appId > 0 ? getAppDisplayName(appId) : 'PMOVES App';
 
   // Read stage from document root attribute (set by pmovesRoomAdapter).

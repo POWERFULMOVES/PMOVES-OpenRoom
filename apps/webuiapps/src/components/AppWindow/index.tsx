@@ -153,7 +153,7 @@ const AppWindow: React.FC<Props> = ({ win }) => {
       <div className={styles.content}>
         <div className={styles.contentInner}>
           <Suspense fallback={<div className={styles.loading}>Loading...</div>}>
-            {isPmovesApp ? <StubApp /> : <AppComp />}
+            {isPmovesApp ? <StubApp appId={win.appId} /> : <AppComp />}
           </Suspense>
         </div>
       </div>
