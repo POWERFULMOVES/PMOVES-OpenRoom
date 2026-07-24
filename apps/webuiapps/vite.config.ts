@@ -398,6 +398,7 @@ const config = ({ mode }: ConfigEnv): UserConfigExport => {
     llmProxyPlugin(),
     jsonFilePlugin('characters', '/api/characters', CHARACTERS_FILE),
     jsonFilePlugin('mods', '/api/mods', MODS_FILE),
+    pmovesRoomsPlugin(),
     appGeneratorPlugin({
       llmConfigFile: LLM_CONFIG_FILE,
       projectRoot: resolve(__dirname, '../..'),
@@ -492,5 +493,70 @@ const config = ({ mode }: ConfigEnv): UserConfigExport => {
     },
   };
 };
+
+/**
+ * PMOVES room manifests plugin (openroom-adapter lane, 2026-07-24).
+ *
+ * Serves /api/rooms/<id>.json from the monorepo's
+ * pmoves/config/rooms/ directory so the room adapter can fetch manifests
+ * in local dev without the docker-compose nginx reverse proxy.
+ *
+ * Path resolution:
+ *   1. PMOVES_ROOMS_DIR env var (set by the operator or docker-compose)
+ *   2. <repo-root>/pmoves/config/rooms (monorepo convention)
+ *
+ * The regex match enforces [a-z0-9._-]+ to deny path traversal, mirroring
+ * the nginx config in default.conf.
+ */
+function pmovesRoomsPlugin(): Plugin {
+  return {
+    name: 'pmoves-rooms',
+    configureServer(server) {
+      // Resolve once at config time; re-resolve on file change is unnecessary
+      // because the dev workflow doesn't add manifests at runtime.
+      const envDir = process.env.PMOVES_ROOMS_DIR;
+      const fallback = resolve(__dirname, '..', '..', '..', 'pmoves', 'config', 'rooms');
+      const roomsDir = envDir && fs.existsSync(envDir) ? envDir : fallback;
+      const ROOM_ID_RE = /^[a-z0-9._-]+$/i;
+
+      server.middlewares.use('/api/rooms', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        if (req.method !== 'GET') {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: 'method not allowed' }));
+          return;
+        }
+        // URL is /api/rooms/<id>.json; extract the id.
+        const url = (req.url || '/').split('?')[0];
+        const m = url.match(/^\/([^/]+)\.json$/);
+        if (!m) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'expected /api/rooms/<id>.json' }));
+          return;
+        }
+        const roomId = m[1];
+        if (!ROOM_ID_RE.test(roomId)) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'invalid room id format' }));
+          return;
+        }
+        const filePath = join(roomsDir, `${roomId}.json`);
+        if (!fs.existsSync(filePath)) {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: `manifest not found: ${roomId}` }));
+          return;
+        }
+        try {
+          res.writeHead(200);
+          res.end(fs.readFileSync(filePath, 'utf-8'));
+        } catch (err) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+      });
+    },
+  };
+}
 
 export default config;
