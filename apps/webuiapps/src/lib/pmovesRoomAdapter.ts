@@ -170,7 +170,7 @@ export async function loadPmovesRoom(roomId: string): Promise<LoadedRoom> {
     const id = registerApp({
       appName: app.app_id,
       route: app.route,
-      displayName: app.displayName(app),
+      displayName: appDisplayName(app),
       icon: appIconForKind(app.kind),
       color: appColorForKind(app.kind),
       defaultSize: defaultSizeForKind(app.kind),

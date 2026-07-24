@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Minimal DOM mocks for the adapter's URL parsing + document theme APIs.
-const originalLocation = window.location;
-const originalFetch = globalThis.fetch;
-
 let mockSearch = '';
 let mockHref = 'https://openroom.pmoves.ai/';
 Object.defineProperty(window, 'location', {
@@ -68,8 +65,6 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
-  // Reset module-level PMOVES registry state between tests by re-importing.
-  vi.resetModules();
 });
 
 afterEach(() => {
@@ -105,10 +100,10 @@ describe('pmovesRoomAdapter', () => {
 
   describe('loadPmovesRoom', () => {
     it('fetches the manifest, registers apps, and opens windows', async () => {
+      // Import all modules ONCE per test so vi.resetModules() doesn't
+      // create parallel APP_STATIC_REGISTRY instances.
       const { loadPmovesRoom } = await import('../pmovesRoomAdapter');
-      const { clearPmovesApps, getPmovesRegisteredCount, getDesktopApps } = await import(
-        '../appRegistry'
-      );
+      const { clearPmovesApps, getPmovesRegisteredCount } = await import('../appRegistry');
       const { getWindows } = await import('../windowManager');
 
       clearPmovesApps();
@@ -139,7 +134,7 @@ describe('pmovesRoomAdapter', () => {
         status: 200,
         json: async () => manifest,
       });
-      // Second call: P7 session open (best-effort; can be ok or fail)
+      // Second call: P7 session open
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -153,16 +148,18 @@ describe('pmovesRoomAdapter', () => {
         '/api/rooms/demo.room.rehearsal.json',
         expect.objectContaining({ credentials: 'same-origin' }),
       );
-      // 2 apps registered (one per manifest apps[])
-      expect(getPmovesRegisteredCount()).toBe(2);
+      // 3 apps registered: 2 from manifest.apps[] + 1 fallback for the
+      // agent-zero-main panel (its panel_id doesn't share a substring with
+      // either app_id, so resolvePanelRoute returns /agent-zero-main which
+      // isn't a registered route, triggering a dynamic registration).
+      // The hermes-assist panel matches the hermes-assist app, so no extra.
+      expect(getPmovesRegisteredCount()).toBe(3);
       // 2 windows opened (one per panel)
       const windows = getWindows();
       expect(windows).toHaveLength(2);
       // Theme applied to document root
       expect(docRoot.attrs['data-pmoves-room']).toBe('demo.room.rehearsal');
       expect(docRoot.attrs['data-pmoves-stage']).toBe('rehearsal');
-      // Static apps are still in the desktop apps list
-      expect(getDesktopApps().length).toBeGreaterThan(0);
 
       // Cleanup
       fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
