@@ -284,6 +284,38 @@ const Shell: React.FC = () => {
     seedMetaFiles();
   }, []);
 
+  // PMOVES room adapter (openroom-adapter lane, 2026-07-24): if the URL has
+  // `?room=<id>`, fetch the manifest, register apps, compose windows from
+  // shell.layout.panels[], and bind a P7 session. On unmount, close the
+  // session and clear the dynamic registry. See @/lib/pmovesRoomAdapter.
+  useEffect(() => {
+    let cancelled = false;
+    let dispose: (() => Promise<void>) | null = null;
+    (async () => {
+      try {
+        // Lazy import to avoid pulling the adapter into the initial bundle
+        // for the no-room path.
+        const { loadPmovesRoomIfPresent } = await import('@/lib/pmovesRoomAdapter');
+        const loaded = await loadPmovesRoomIfPresent();
+        if (cancelled) {
+          if (loaded) await loaded.dispose();
+          return;
+        }
+        if (loaded) dispose = loaded.dispose;
+      } catch (err) {
+        console.error('[Shell] PMOVES room load failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (dispose) {
+        dispose().catch((err) => {
+          console.warn('[Shell] PMOVES room dispose failed:', err);
+        });
+      }
+    };
+  }, []);
+
   // Pause user action reporting while upload or mod generation is in progress
   useEffect(() => {
     const shouldListen = !uploadOpen && !modGenerating;

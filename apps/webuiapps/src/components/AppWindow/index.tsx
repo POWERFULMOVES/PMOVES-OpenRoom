@@ -8,7 +8,7 @@ import {
   moveWindow,
   resizeWindow,
 } from '@/lib/windowManager';
-import { getSourceDirToAppId } from '@/lib/appRegistry';
+import { getSourceDirToAppId, PMOVES_DYNAMIC_APP_ID_BASE } from '@/lib/appRegistry';
 import { reportUserOsAction } from '@/lib/vibeContainerMock';
 import styles from './index.module.scss';
 
@@ -25,6 +25,12 @@ for (const [path, loader] of Object.entries(pageModules)) {
   const appId = dirToAppId[dirMatch[1]];
   if (appId) APP_COMPONENTS[appId] = lazy(loader);
 }
+
+// StubApp: fallback renderer for PMOVES-room apps (openroom-adapter lane).
+// Loaded lazily; used for any window whose appId is in the PMOVES_DYNAMIC range
+// (1000+). When the real app adapter is wired for a given manifest entry,
+// the lookup above will win once a built-in sourceDir is associated.
+const StubApp = lazy(() => import('@/pages/StubApp'));
 
 interface Props {
   win: WindowState;
@@ -99,7 +105,12 @@ const AppWindow: React.FC<Props> = ({ win }) => {
   );
 
   const AppComp = APP_COMPONENTS[win.appId];
-  if (!AppComp) return null;
+  // PMOVES-room apps (appId >= 1000) have no built-in sourceDir. Render the
+  // StubApp fallback which surfaces manifest metadata + the stage discipline
+  // banner. When a real app adapter is wired for a given manifest entry,
+  // it will register a built-in sourceDir and win this lookup.
+  const isPmovesApp = win.appId >= PMOVES_DYNAMIC_APP_ID_BASE;
+  if (!AppComp && !isPmovesApp) return null;
 
   if (win.minimized) return null;
 
@@ -142,7 +153,7 @@ const AppWindow: React.FC<Props> = ({ win }) => {
       <div className={styles.content}>
         <div className={styles.contentInner}>
           <Suspense fallback={<div className={styles.loading}>Loading...</div>}>
-            <AppComp />
+            {isPmovesApp ? <StubApp /> : <AppComp />}
           </Suspense>
         </div>
       </div>
