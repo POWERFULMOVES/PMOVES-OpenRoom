@@ -228,5 +228,95 @@ describe('pmovesRoomAdapter', () => {
       fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
       await loaded.dispose();
     });
+
+    it('archive stage: registers apps but does not open any windows', async () => {
+      const { loadPmovesRoom } = await import('../pmovesRoomAdapter');
+      const { clearPmovesApps, getPmovesRegisteredCount } = await import('../appRegistry');
+      const { getWindows } = await import('../windowManager');
+
+      clearPmovesApps();
+
+      const manifest = {
+        room_id: 'archive.room.example',
+        stage: 'archive' as const,
+        display_name: 'Archive Example',
+        shell: {
+          layout: {
+            panels: [
+              { panel_id: 'left-panel', kind: 'custom', position: 'left', size: 40, pinned: true },
+              { panel_id: 'right-panel', kind: 'custom', position: 'right', size: 40, pinned: true },
+            ],
+          },
+        },
+        apps: [
+          { app_id: 'app-a', kind: 'custom', route: '/archive/a' },
+          { app_id: 'app-b', kind: 'custom', route: '/archive/b' },
+        ],
+      };
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => manifest,
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ session_id: 'arch-session' }),
+      });
+
+      const loaded = await loadPmovesRoom('archive.room.example');
+
+      // Apps still registered (so the registry stays consistent for the
+      // close handler) — but no windows opened.
+      expect(getPmovesRegisteredCount()).toBe(2);
+      expect(getWindows()).toHaveLength(0);
+      // Stage attribute set so StubApp banner + document CSS see the
+      // archive state.
+      expect(docRoot.attrs['data-pmoves-stage']).toBe('archive');
+      // Cleanup
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+      await loaded.dispose();
+    });
+
+    it('applies stage attribute even without accent_color', async () => {
+      const { loadPmovesRoom } = await import('../pmovesRoomAdapter');
+
+      const manifest = {
+        room_id: 'no-theme.room.example',
+        stage: 'live' as const,
+        display_name: 'No Theme Example',
+        // No shell.theme.accent_color — should still set data-pmoves-stage.
+        apps: [],
+      };
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => manifest,
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ session_id: 'no-theme-session' }),
+      });
+
+      const loaded = await loadPmovesRoom('no-theme.room.example');
+
+      // Stage is set even though accent_color was missing (regression
+      // for the chatgpt-codex P2 "Apply room stage even without an
+      // accent color").
+      expect(docRoot.attrs['data-pmoves-room']).toBe('no-theme.room.example');
+      expect(docRoot.attrs['data-pmoves-stage']).toBe('live');
+      // --pm-accent NOT set (no accent in the manifest).
+      expect(
+        (docRoot.style.setProperty as unknown as { mock: { calls: unknown[] } })
+          .mock.calls.find((c) => Array.isArray(c) && c[0] === '--pm-accent'),
+      ).toBeUndefined();
+
+      // Cleanup
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+      await loaded.dispose();
+    });
   });
 });

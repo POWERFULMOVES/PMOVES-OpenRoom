@@ -181,14 +181,19 @@ export async function loadPmovesRoom(roomId: string): Promise<LoadedRoom> {
   // Compose the desktop from shell.layout.panels[]. If no panels declared,
   // fall back to opening one window per pinned app.
   const windowIds: number[] = [];
+  // Archive-stage rooms: register apps but don't open any windows (per the
+  // stage-discipline contract in pmoves/docs/ROOMS_ON_A_STAGE.md; chatgpt-
+  // codex P2). The theme + data-pmoves-* attrs still get set so the
+  // desktop wallpaper + StubApp banner reflect the archived state.
+  const isArchived = manifest.stage === 'archive';
   const panels = manifest.shell?.layout?.panels || [];
-  if (panels.length > 0) {
+  if (!isArchived && panels.length > 0) {
     for (let i = 0; i < panels.length; i++) {
       const panel = panels[i];
       const win = composePanel(panel, manifest, appIdByAppId, i);
       if (win !== null) windowIds.push(win);
     }
-  } else {
+  } else if (!isArchived) {
     // No panels: one window per pinned app, stacked top-left.
     const pinnedApps = (manifest.apps || []).filter((a) => a.pinned !== false);
     for (let i = 0; i < pinnedApps.length; i++) {
@@ -341,10 +346,13 @@ function panelPosition(
 
 function applyTheme(manifest: RoomManifest): void {
   const theme = manifest.shell?.theme;
-  if (!theme?.accent_color) return;
-  document.documentElement.style.setProperty('--pm-accent', theme.accent_color);
+  // Apply stage + room id attrs unconditionally so the StubApp banner
+  // and document-level CSS can see the right stage even when the
+  // manifest omits the optional accent_color (chatgpt-codex P2).
   document.documentElement.setAttribute('data-pmoves-room', manifest.room_id);
   document.documentElement.setAttribute('data-pmoves-stage', manifest.stage);
+  if (!theme?.accent_color) return;
+  document.documentElement.style.setProperty('--pm-accent', theme.accent_color);
 }
 
 function removeTheme(manifest: RoomManifest): void {
