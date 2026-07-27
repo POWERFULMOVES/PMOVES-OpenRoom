@@ -48,6 +48,47 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
 
   const isInteractive = stage === 'live';
 
+  // openroom-adapter Level B: render the real room surface in-window when an
+  // iframe URL is configured for this room via VITE_PMOVES_ROOM_IFRAMES —
+  // a JSON map { "<room_id>": "<served-url>" }. This is how a rendered room
+  // (e.g. the persona living-doc static bundle) actually shows inside the
+  // desktop instead of the metadata stub. No entry → the stub below.
+  const iframeUrl = React.useMemo(() => {
+    try {
+      const raw = import.meta.env.VITE_PMOVES_ROOM_IFRAMES as string | undefined;
+      if (!raw || !roomId) return '';
+      const map = JSON.parse(raw) as Record<string, string>;
+      return map[roomId] || '';
+    } catch {
+      return '';
+    }
+  }, [roomId]);
+
+  if (iframeUrl) {
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            padding: '6px 12px',
+            background: banner.color,
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+          }}
+        >
+          {banner.text} {roomId && <span style={{ opacity: 0.7 }}>· {roomId}</span>}
+        </div>
+        <iframe
+          title={displayName}
+          src={iframeUrl}
+          style={{ flex: 1, width: '100%', border: 'none' }}
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
