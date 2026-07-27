@@ -83,7 +83,11 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
           title={displayName}
           src={iframeUrl}
           style={{ flex: 1, width: '100%', border: 'none' }}
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          // Hardened for public/mesh exposure: the room's own scripts + external
+          // link pop-outs only. No allow-same-origin (a served room surface never
+          // needs the desktop's origin/storage — a null origin is safer) and no
+          // allow-forms.
+          sandbox="allow-scripts allow-popups"
         />
       </div>
     );
