@@ -1230,13 +1230,20 @@ const SettingsModal: React.FC<{
   onSave: (_config: LLMConfig, _igConfig: ImageGenConfig | null) => void;
   onClose: () => void;
 }> = ({ config, imageGenConfig, onSave, onClose }) => {
-  // LLM settings
-  const [provider, setProvider] = useState<LLMProvider>(config?.provider || 'minimax');
+  // LLM settings. P4: default to the 'pmoves' provider (PMOVES fleet
+  // TensorZero gateway) when the user hasn't picked a provider yet.
+  // The provider dropdown still shows all 9 options; this is just the
+  // initial selection. Rationale: a fresh OpenRoom install in a
+  // PMOVES context should "just work" without requiring a per-user
+  // API key, and the local TensorZero gateway at :3030 is the
+  // canonical fleet LLM surface.
+  const DEFAULT_LLM_PROVIDER: LLMProvider = 'pmoves';
+  const [provider, setProvider] = useState<LLMProvider>(config?.provider || DEFAULT_LLM_PROVIDER);
   const [apiKey, setApiKey] = useState(config?.apiKey || '');
   const [baseUrl, setBaseUrl] = useState(
-    config?.baseUrl || getDefaultProviderConfig('minimax').baseUrl,
+    config?.baseUrl || getDefaultProviderConfig(DEFAULT_LLM_PROVIDER).baseUrl,
   );
-  const [model, setModel] = useState(config?.model || getDefaultProviderConfig('minimax').model);
+  const [model, setModel] = useState(config?.model || getDefaultProviderConfig(DEFAULT_LLM_PROVIDER).model);
   const [customHeaders, setCustomHeaders] = useState(config?.customHeaders || '');
   const [manualModelMode, setManualModelMode] = useState(false);
 
