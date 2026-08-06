@@ -71,6 +71,11 @@ export interface RoomManifest {
       accent_color?: string;
       skin?: string;
       icon?: string;
+      // P6 (openroom-realization slice 2): optional wallpaper URL — sets
+      // --pm-wallpaper on document root. AppWindow + Shell can consume
+      // it via var(--pm-wallpaper). If unset, the openroom default
+      // wallpaper applies.
+      wallpaper?: string;
     };
     layout?: {
       default_route?: string;
@@ -348,17 +353,47 @@ function applyTheme(manifest: RoomManifest): void {
   const theme = manifest.shell?.theme;
   // Apply stage + room id attrs unconditionally so the StubApp banner
   // and document-level CSS can see the right stage even when the
-  // manifest omits the optional accent_color (chatgpt-codex P2).
+  // manifest omits the optional theme fields (chatgpt-codex P2).
   document.documentElement.setAttribute('data-pmoves-room', manifest.room_id);
   document.documentElement.setAttribute('data-pmoves-stage', manifest.stage);
-  if (!theme?.accent_color) return;
-  document.documentElement.style.setProperty('--pm-accent', theme.accent_color);
+  // P6 (openroom-realization slice 2): consume theme.skin, theme.icon,
+  // and theme.wallpaper for the room's visual identity. Each is set as
+  // both a data-attr (for CSS selectors like [data-pmoves-skin="..."])
+  // and a CSS custom property (for var() in component stylesheets).
+  // The accent_color remains the canonical room-color; skin/icon are
+  // additive (don't override the accent). The wallpaper, if set, takes
+  // precedence over the openroom default wallpaper for the duration of
+  // the session.
+  if (theme?.skin) {
+    document.documentElement.setAttribute('data-pmoves-skin', theme.skin);
+    document.documentElement.style.setProperty('--pm-skin', theme.skin);
+  }
+  if (theme?.icon) {
+    document.documentElement.setAttribute('data-pmoves-icon', theme.icon);
+    document.documentElement.style.setProperty('--pm-icon', theme.icon);
+  }
+  if (theme?.accent_color) {
+    document.documentElement.style.setProperty('--pm-accent', theme.accent_color);
+  }
+  // P6 optional extension: theme.wallpaper (declared in shell.theme;
+  // the manifest schema is the source of truth). Forward-declared here
+  // so the openroom skin authors can ship wallpaper variants without
+  // adapter changes.
+  const themeAny = theme as { wallpaper?: string } | undefined;
+  if (themeAny?.wallpaper) {
+    document.documentElement.style.setProperty('--pm-wallpaper', themeAny.wallpaper);
+  }
 }
 
 function removeTheme(manifest: RoomManifest): void {
   document.documentElement.style.removeProperty('--pm-accent');
+  document.documentElement.style.removeProperty('--pm-skin');
+  document.documentElement.style.removeProperty('--pm-icon');
+  document.documentElement.style.removeProperty('--pm-wallpaper');
   document.documentElement.removeAttribute('data-pmoves-room');
   document.documentElement.removeAttribute('data-pmoves-stage');
+  document.documentElement.removeAttribute('data-pmoves-skin');
+  document.documentElement.removeAttribute('data-pmoves-icon');
 }
 
 async function p7Session(
