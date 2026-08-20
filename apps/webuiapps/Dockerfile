@@ -16,7 +16,12 @@ COPY . .
 # Optionally set a custom npm registry (e.g. China mirror: https://registry.npmmirror.com/)
 # RUN npm config set registry https://registry.npmmirror.com/
 RUN npm install -g pnpm@9
-RUN pnpm i --frozen-lockfile && pnpm store prune && rm -rf /root/.local/share/pnpm/store || true
+# --prod=false: NODE_ENV=${ENV} (=production) above makes pnpm skip ALL
+# devDependencies workspace-wide — vite is a devDep, so the frozen install
+# completes green while leaving the workspace without a build toolchain;
+# build.sh then fails with "Local package.json exists, but node_modules
+# missing". Production trimming happens inside `vite build` itself.
+RUN pnpm i --frozen-lockfile --prod=false && pnpm store prune && rm -rf /root/.local/share/pnpm/store || true
 
 WORKDIR ${APP_PATH}
 RUN sh ./script/build.sh ${ENV}
