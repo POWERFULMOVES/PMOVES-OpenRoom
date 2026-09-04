@@ -29,8 +29,19 @@ fork-sync promotions land on the upstream PR.
   - `location ~ ^/api/rooms/([a-z0-9._-]+)\.json$` — serves PMOVES room
     manifests read-only from the volume-mounted `/etc/pmoves/rooms/`.
     The regex match denies path traversal.
-  - `location /api/p7/` — proxy to `p7-room-orchestrator:8120` with
+  - `location /api/p7/` — proxy to `p7-room-orchestrator:**8122**` with
     forwarded `Authorization` header for `P7_CONTROL_TOKEN`.
+      **Corrected 2026-09-04: this said 8120, which is not a P7 port.**
+      Source: PMOVES.AI `pmoves/docs/AGENTS/AGNOTE4482.md:36` — *"pmoves/
+      services/p7-room-orchestrator/ is the executable control-plane
+      implementation on port 8122"* — and `:1441`, *"P7 is wired as
+      `p7-room-orchestrator` on 8122 in Compose, the agent registry,
+      orchestration team, service/port catalogs"*.
+      Verified on PMOVES-4090 2026-09-04 from `pmoves_app`:
+      `p7-room-orchestrator:8122/healthz` -> 200.
+      The proxy also uses a variable + `resolver` rather than an `upstream {}`
+      block, so an absent P7 degrades that one route instead of aborting
+      nginx — see the sourced note in `default.conf`.
 
 ## How the parent monorepo wires it
 
