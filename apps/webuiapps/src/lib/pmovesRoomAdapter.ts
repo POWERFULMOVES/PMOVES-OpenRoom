@@ -379,9 +379,11 @@ function applyTheme(manifest: RoomManifest): void {
   // the manifest schema is the source of truth). Forward-declared here
   // so the openroom skin authors can ship wallpaper variants without
   // adapter changes.
-  const themeAny = theme as { wallpaper?: string } | undefined;
-  if (themeAny?.wallpaper) {
-    document.documentElement.style.setProperty('--pm-wallpaper', themeAny.wallpaper);
+  // Read the declared property directly. `shell.theme` already declares
+  // `wallpaper?: string`, so the cast duplicated the type and would have
+  // hidden a schema change rather than failing on it.
+  if (theme?.wallpaper) {
+    document.documentElement.style.setProperty('--pm-wallpaper', theme.wallpaper);
   }
 }
 

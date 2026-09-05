@@ -1303,6 +1303,11 @@ const SettingsModal: React.FC<{
             <option value="z.ai">Z.ai</option>
             <option value="kimi">Kimi</option>
             <option value="openrouter">OpenRouter</option>
+            {/* DEFAULT_LLM_PROVIDER is 'pmoves', so without this option the
+                controlled select has no matching value on a fresh config and
+                renders blank -- and a user who switches away cannot switch
+                back without clearing persisted configuration. */}
+            <option value="pmoves">PMOVES Fleet (TensorZero)</option>
           </select>
         </div>
 
