@@ -15,3 +15,28 @@
 # Same reasoning for anything else executed by a shell inside a container.
 Dockerfile* text eol=lf
 *.bash text eol=lf
+
+# REFRESHING AN EXISTING CHECKOUT.
+#
+# These attributes fix every FUTURE checkout and do nothing to a working tree
+# that already exists: git will not rewrite a file it considers unchanged. A
+# clone made before this commit keeps whatever bytes it has -- and `docker
+# build` reads the WORKING TREE as its context, not the stored blob, so a stale
+# CRLF copy still breaks the builder image.
+#
+# `git add --renormalize .` -- the sequence in the gitattributes docs -- does
+# not help here. Measured on this branch it changes 0 files, because the blobs
+# are already LF. The index was never the problem.
+#
+# On a node that already has this repo checked out, drop the affected file from
+# the index and take it again, which is scoped and leaves other local work
+# alone:
+#
+#     git rm --cached apps/webuiapps/script/build.sh
+#     git checkout    apps/webuiapps/script/build.sh
+#
+# Verified on a Windows checkout with core.autocrlf=true: with the attributes
+# present, build.sh checks out as 16 LF / 0 CRLF, because attributes override
+# core.autocrlf.
+#
+# https://git-scm.com/docs/gitattributes
