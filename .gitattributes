@@ -1,0 +1,17 @@
+# Shell scripts must keep LF endings on every platform.
+#
+# Without this, a Windows checkout with core.autocrlf=true rewrites
+# apps/webuiapps/script/build.sh to CRLF, and the Docker build fails
+# inside the node:20-alpine builder with:
+#
+#   ./script/build.sh: line 2: : not found
+#   ./script/build.sh: set: line 3: illegal option -
+#
+# The `\r` becomes part of each token, so `set -e` parses as `set -e\r`.
+# Linux and macOS checkouts never see this, which is why CI stays green
+# while `make -C pmoves up-openroom` fails on a Windows fleet node.
+*.sh text eol=lf
+
+# Same reasoning for anything else executed by a shell inside a container.
+Dockerfile* text eol=lf
+*.bash text eol=lf
