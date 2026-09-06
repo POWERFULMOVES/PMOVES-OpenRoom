@@ -118,9 +118,9 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
       <div style={{ padding: '16px 20px', flex: 1, overflow: 'auto' }}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>{displayName}</h2>
         <p style={{ margin: '0 0 12px 0', color: '#6b7280', fontSize: 13 }}>
-          PMOVES app stub — the real service wiring is queued in the
-          openroom-adapter follow-up lane. This window reflects the room
-          manifest's <code>apps[]</code> entry: provider, route, capabilities.
+          PMOVES app stub — the real service wiring is queued in the openroom-adapter follow-up
+          lane. This window reflects the room manifest's <code>apps[]</code> entry: provider, route,
+          capabilities.
         </p>
         <dl style={{ fontSize: 12, lineHeight: 1.5 }}>
           <dt style={{ fontWeight: 600, color: '#374151' }}>appId</dt>
@@ -144,18 +144,19 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
               fontSize: 13,
             }}
             onClick={() =>
-              alert(
-                'Live service routing is queued in the openroom-adapter follow-up lane.',
-              )
+              // Deliberate stub affordance: the message names the follow-up lane.
+              // Replacing it with in-page UI is a UX change and does not belong in
+              // the PR that turns CI on.
+              // eslint-disable-next-line no-alert
+              alert('Live service routing is queued in the openroom-adapter follow-up lane.')
             }
           >
             Open live service (stub)
           </button>
         ) : (
           <p style={{ marginTop: 12, fontSize: 12, color: '#9ca3af' }}>
-            Interactions are disabled in {stage} stage. Promote the room to{' '}
-            <code>live</code> via the P7 stage transition API to enable this
-            app.
+            Interactions are disabled in {stage} stage. Promote the room to <code>live</code> via
+            the P7 stage transition API to enable this app.
           </p>
         )}
       </div>
