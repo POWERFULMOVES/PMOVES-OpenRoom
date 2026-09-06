@@ -1,0 +1,10 @@
+# Keep host artifacts out of the image build context. Measured 2026-09-05 on a
+# Windows node: a 613 MB host node_modules (win32 esbuild binary) was COPY'd
+# into the Linux builder and `vite build` died in esbuild's service spawn.
+# The image is built from the lockfile inside the builder, on any host.
+node_modules
+**/node_modules
+**/dist
+.git
+**/.turbo
+**/.cache
