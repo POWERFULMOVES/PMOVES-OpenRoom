@@ -1,10 +1,21 @@
 name: CI
 
+# PMOVES.AI-Edition-Hardened is the branch this fork is CONSUMED on: the
+# parent repo's .gitmodules pins it, every PMOVES PR targets it, and `main` is
+# the upstream mirror. Watching `main` alone meant CI had never run on a single
+# consumed pull request -- PRs #3, #4, #8, #9, #10 and #11 all report
+# `total_count: 0` check runs, and the closeout gate refuses them with "no
+# required checks were reported".
+#
+# It is also why branch protection on hardened carries
+# `required_status_checks.contexts: []`: there was no check name to require,
+# because no check had ever reported. Adding the branch here produces
+# `lint-and-build` on hardened, which is the context that can then be required.
 on:
   push:
-    branches: [main]
+    branches: [main, PMOVES.AI-Edition-Hardened]
   pull_request:
-    branches: [main]
+    branches: [main, PMOVES.AI-Edition-Hardened]
 
 jobs:
   lint-and-build:
