@@ -41,10 +41,7 @@ import {
   getAppByRoute,
   PMOVES_DYNAMIC_APP_ID_BASE,
 } from './appRegistry';
-import {
-  openWindowAt,
-  closeAllPmovesWindows,
-} from './windowManager';
+import { openWindowAt, closeAllPmovesWindows } from './windowManager';
 import type { WindowState } from './windowManager';
 
 // ---- types matching the PMOVES room manifest v1 schema ----
@@ -91,7 +88,16 @@ export interface RoomManifest {
 
 export interface RoomPanel {
   panel_id: string;
-  kind: 'chat' | 'browser' | 'custom' | 'notebook' | 'graph' | 'media' | 'controls' | 'tasks' | 'logs';
+  kind:
+    | 'chat'
+    | 'browser'
+    | 'custom'
+    | 'notebook'
+    | 'graph'
+    | 'media'
+    | 'controls'
+    | 'tasks'
+    | 'logs';
   position?: 'left' | 'right' | 'top' | 'bottom' | 'center';
   size?: number; // 0-100 percent of the parent axis
   pinned?: boolean;
@@ -210,7 +216,9 @@ export async function loadPmovesRoom(roomId: string): Promise<LoadedRoom> {
   applyTheme(manifest);
 
   // P7 session bind (best-effort).
-  const p7Result = await p7Session(manifest, 'open');
+  // The call opens the P7 session; the binding was never read. Kept as a
+  // bare call so the side effect stays and nothing claims a unused value.
+  await p7Session(manifest, 'open');
 
   return {
     manifest,
@@ -355,7 +363,9 @@ function applyTheme(manifest: RoomManifest): void {
   document.documentElement.style.setProperty('--pm-accent', theme.accent_color);
 }
 
-function removeTheme(manifest: RoomManifest): void {
+// `_manifest` is unused today and kept so this stays symmetrical with
+// applyTheme; the rule allows an unused arg matching /^_/u.
+function removeTheme(_manifest: RoomManifest): void {
   document.documentElement.style.removeProperty('--pm-accent');
   document.documentElement.removeAttribute('data-pmoves-room');
   document.documentElement.removeAttribute('data-pmoves-stage');
@@ -398,9 +408,7 @@ async function p7Session(
 // ---- per-app display helpers (used during registerApp) ----
 
 function appDisplayName(app: RoomApp): string {
-  return app.app_id
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return app.app_id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function appIconForKind(kind: string): string {
@@ -466,9 +474,7 @@ function defaultSizeForKind(kind: string): { width: number; height: number } {
 }
 
 function panelDisplayName(panel: RoomPanel): string {
-  return panel.panel_id
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return panel.panel_id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Re-export the window type alias so consumers can type their refs.
