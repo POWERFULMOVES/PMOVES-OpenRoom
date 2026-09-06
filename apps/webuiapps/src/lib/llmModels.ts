@@ -6,7 +6,15 @@ export type LLMProvider =
   | 'minimax'
   | 'z.ai'
   | 'kimi'
-  | 'openrouter';
+  | 'openrouter'
+  // P4 (openroom-realization slice 2): 'pmoves' routes through the
+  // PMOVES TensorZero gateway (http://localhost:3030 by default). The
+  // OpenAI-compatible endpoint at /v1/chat/completions exposes the
+  // fleet's chat_default function, so the model field is
+  // 'tensorzero::chat_default' (TensorZero's "route to the default
+  // function" convention). The OpenRoom chat panel uses this when the
+  // user hasn't picked a different provider — no API key required.
+  | 'pmoves';
 
 export type ModelCategory = 'flagship' | 'general' | 'coding' | 'lightweight' | 'thinking';
 
@@ -32,6 +40,28 @@ export interface ProviderModelConfig {
 }
 
 export const LLM_PROVIDER_CONFIGS: Record<LLMProvider, ProviderModelConfig> = {
+  // P4: read the TensorZero base URL from a build-time Vite env var
+  // (VITE_PMOVES_TENSORZERO_URL) so production deployments can point at
+  // the fleet gateway without rebuilding the provider config. Default
+  // to localhost:3030 for local dev.
+  pmoves: {
+    displayName: 'PMOVES Fleet (TensorZero)',
+    baseUrl:
+      (import.meta.env.VITE_PMOVES_TENSORZERO_URL as string | undefined) ||
+      'http://localhost:3030/v1',
+    // TensorZero's "default function" route — the gateway picks the
+    // best model for each request based on fitness. Operators can
+    // override per-deployment by setting
+    // VITE_PMOVES_TENSORZERO_DEFAULT_MODEL at build time.
+    defaultModel:
+      (import.meta.env.VITE_PMOVES_TENSORZERO_DEFAULT_MODEL as string | undefined) ||
+      'tensorzero::chat_default',
+    models: [
+      { id: 'tensorzero::chat_default', name: 'Fleet default (fitness-selected)', category: 'general' },
+      { id: 'tensorzero::coding_default', name: 'Fleet coding default', category: 'coding' },
+      { id: 'tensorzero::reasoning_default', name: 'Fleet reasoning default', category: 'thinking' },
+    ],
+  },
   openai: {
     displayName: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
