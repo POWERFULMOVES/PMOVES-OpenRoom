@@ -66,8 +66,13 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
 
   if (iframeUrl) {
     return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div
+        data-testid="pmoves-room-app"
+        data-pmoves-mode="iframe"
+        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      >
         <div
+          data-testid="pmoves-stage-banner"
           style={{
             padding: '6px 12px',
             background: banner.color,
@@ -80,6 +85,7 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
           {banner.text} {roomId && <span style={{ opacity: 0.7 }}>· {roomId}</span>}
         </div>
         <iframe
+          data-testid="pmoves-room-iframe"
           title={displayName}
           src={iframeUrl}
           style={{ flex: 1, width: '100%', border: 'none' }}
@@ -95,6 +101,8 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
 
   return (
     <div
+      data-testid="pmoves-room-app"
+      data-pmoves-mode="stub"
       style={{
         height: '100%',
         display: 'flex',
@@ -104,6 +112,7 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
       }}
     >
       <div
+        data-testid="pmoves-stage-banner"
         style={{
           padding: '6px 12px',
           background: banner.color,
@@ -126,13 +135,21 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
           <dt style={{ fontWeight: 600, color: '#374151' }}>appId</dt>
           <dd style={{ margin: '0 0 8px 12px', fontFamily: 'monospace' }}>{appId}</dd>
           <dt style={{ fontWeight: 600, color: '#374151' }}>stage</dt>
-          <dd style={{ margin: '0 0 8px 12px' }}>{stage}</dd>
+          <dd data-testid="pmoves-stage-value" style={{ margin: '0 0 8px 12px' }}>
+            {stage}
+          </dd>
           <dt style={{ fontWeight: 600, color: '#374151' }}>room</dt>
-          <dd style={{ margin: '0 0 8px 12px', fontFamily: 'monospace' }}>{roomId || '(none)'}</dd>
+          <dd
+            data-testid="pmoves-room-value"
+            style={{ margin: '0 0 8px 12px', fontFamily: 'monospace' }}
+          >
+            {roomId || '(none)'}
+          </dd>
         </dl>
         {isInteractive ? (
           <button
             type="button"
+            data-testid="pmoves-open-live"
             style={{
               marginTop: 12,
               padding: '6px 14px',
@@ -154,7 +171,10 @@ const StubApp: React.FC<{ appId: number }> = ({ appId }) => {
             Open live service (stub)
           </button>
         ) : (
-          <p style={{ marginTop: 12, fontSize: 12, color: '#9ca3af' }}>
+          <p
+            data-testid="pmoves-stage-locked"
+            style={{ marginTop: 12, fontSize: 12, color: '#9ca3af' }}
+          >
             Interactions are disabled in {stage} stage. Promote the room to <code>live</code> via
             the P7 stage transition API to enable this app.
           </p>
