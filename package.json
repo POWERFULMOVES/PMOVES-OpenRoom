@@ -116,8 +116,8 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "pnpm run pretty",
-      "pnpm run lint"
+      "prettier --write",
+      "eslint --fix --quiet"
     ]
   }
 }
