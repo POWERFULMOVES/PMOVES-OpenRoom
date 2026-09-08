@@ -20,6 +20,30 @@ single change, and every one of them looked like it was working.
 | Production build | `NODE_ENV=production npx vite build` in `apps/webuiapps` | `✓ built in ~1m` |
 | nginx config syntax | `nginx -t` in a container; recipe below | `syntax is ok` |
 | nginx behaviour | run two configs, curl both; recipe below | statuses differ or they don't |
+| E2E | `pnpm test:e2e` **at the repo root** | `13 passed, 1 failed` — see below |
+| Coverage of a file you touched | `npx vitest run --coverage --coverage.include='<path>'` | the config's own `include` is ONE file; see below |
+
+**The E2E row did not exist until 2026-09-08**, which is why nobody noticed
+that the suite could not reach the app on a PMOVES node (wrong turn 5) and
+that the room flow had no spec at all. `e2e/pmoves-room.spec.ts` now covers
+`?room=<id>`: manifest composition, the stage gate, and two shell regression
+guards. Verified it can fail — forcing `isInteractive = true` in `StubApp`
+turns the stage-discipline spec red, then green again on revert.
+
+The 1 remaining failure is upstream and pre-existing: `app.spec.ts:104`
+(`typing a message and clicking send`) needs a configured LLM, and no
+`llm.config.json` exists on a clean checkout. Note the suite is inconsistent
+about this — `app.spec.ts:50` conditions on it ("shows **either** setup hint
+**or** chat messages") while `:104` does not.
+
+**Coverage is narrower than it reports.** `apps/webuiapps/vitest.config.ts`
+sets `coverage.include: ['src/lib/llmClient.ts']` with thresholds 75/85/70, so
+`pnpm test:coverage` prints a healthy "All files 94.36%" that describes ONE
+file. Measured against `src/lib/pmovesRoomAdapter.ts` directly: **80.53%
+statements, 65.55% branches, 81.75% lines** — under the >90% that CLAUDE.md's
+task-completion bar requires of touched code, and invisible because the file
+is not in `include`. CLAUDE.md already anticipates this: *"If current config
+thresholds are lower, do not treat that as sufficient."*
 
 ## The four wrong turns, so you don't take them
 
@@ -44,6 +68,22 @@ number tells you nothing. Baseline on 2026-09-05: **35 problems, 7 errors** for
 `NODE_ENV=production vite build`, which is POSIX-only; cmd.exe reports
 `'NODE_ENV' is not recognized`. Set the variable in a POSIX shell instead:
 `NODE_ENV=production npx vite build`.
+
+**5. `pnpm test:e2e` silently tests the wrong server on a PMOVES node.**
+`playwright.config.ts` used port 3000. On any node running the PMOVES data
+tier, `pmoves-supabase-postgrest-1` publishes `127.0.0.1:3000`. Playwright's
+`reuseExistingServer` (true outside CI) probes the URL, sees PostgREST answer
+`401`, concludes a dev server is already up, **skips `pnpm dev` entirely**, and
+runs every spec against the database gateway — 9/9 failing on `toHaveTitle`
+receiving `""`, a result that reads like the app is broken.
+
+It is worse than a busy port: vite binds `0.0.0.0:3000` and `[::]:3000` while
+Docker holds `127.0.0.1:3000`, so **both** can listen at once and which one a
+client reaches depends on how `localhost` resolves. Fixed by moving to 3987
+(override with `OPENROOM_E2E_PORT`), invoking vite directly via Playwright's
+`cwd` — `pnpm dev --port` sends the flag to `turbo`, which rejects it — and
+adding `--strictPort` so vite fails loudly instead of walking to another port.
+The 30s `webServer` timeout was also short for a cold start here; now 120s.
 
 **4. Docker paths get mangled by MSYS.** On a Windows/Git-Bash node,
 `-c /test/nginx.conf` is rewritten to `C:/Program Files/Git/test/nginx.conf`
@@ -77,16 +117,20 @@ both the broken and the fixed config, and only a request showed that
 
 ## Why this file exists
 
-Two things are configured and neither gates anything:
+Two things were configured and neither gated anything. **Updated 2026-09-08 —
+the first is fixed, the second is still open:**
 
-* **`.github/workflows/ci.yml` triggers on `main` only** —
-  `pull_request: branches: [main]`. PMOVES consumes
-  `PMOVES.AI-Edition-Hardened`, so CI has never run on a PR to the branch the
-  fleet uses.
-* **Branch protection on hardened has `required_status_checks.contexts: []`** —
-  protection is on, `strict: true`, and the set of checks that must pass is
-  empty. That is why the closeout gate reports *"no required checks were
-  reported"*.
+* ~~**`.github/workflows/ci.yml` triggers on `main` only**~~ — **FIXED by #12.**
+  The trigger now lists `[main, PMOVES.AI-Edition-Hardened]`, so CI runs on
+  PRs to the branch the fleet actually consumes. It produces `lint-and-build`.
+  Local validation is therefore no longer the *only* gate — but it is still
+  the only gate for anything CI does not run, and CI does not run `test:e2e`
+  or `test:coverage`.
+* **Branch protection on hardened still has `required_status_checks.contexts:
+  []`** — protection is on, `strict: true`, and the set of checks that must
+  pass is empty, which is why the closeout gate reports *"no required checks
+  were reported"*. Now that `lint-and-build` reports a name, there is finally
+  a context to require. Tracked in PMOVES.AI#2979.
 
 Fixing those is sequenced and tracked separately: add hardened to the CI
 trigger, let it produce a check name, then require that name. Until then, this
