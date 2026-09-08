@@ -318,5 +318,68 @@ describe('pmovesRoomAdapter', () => {
       fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
       await loaded.dispose();
     });
+
+    it('applies every optional theme field and removes them on dispose', async () => {
+      const { loadPmovesRoom } = await import('../pmovesRoomAdapter');
+
+      // The prior tests covered data-pmoves-room, data-pmoves-stage and
+      // cleanup, and nothing asserted skin / icon / accent / wallpaper --
+      // so applyTheme could stop setting any of them and the suite stayed
+      // green (coderabbitai, PR #3).
+      const manifest = {
+        room_id: 'themed.room.example',
+        stage: 'live' as const,
+        display_name: 'Themed Example',
+        shell: {
+          theme: {
+            accent_color: '#ff8800',
+            skin: 'midnight',
+            icon: 'https://example.invalid/icon.svg',
+            wallpaper: 'url(https://example.invalid/bg.png)',
+          },
+        },
+        apps: [],
+      };
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => manifest,
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ session_id: 'themed-session' }),
+      });
+
+      const loaded = await loadPmovesRoom('themed.room.example');
+
+      const setCalls = (docRoot.style.setProperty as unknown as { mock: { calls: string[][] } })
+        .mock.calls;
+      const valueOf = (name: string) => setCalls.filter((c) => c[0] === name).map((c) => c[1])[0];
+
+      expect(valueOf('--pm-accent')).toBe('#ff8800');
+      expect(valueOf('--pm-skin')).toBe('midnight');
+      expect(valueOf('--pm-icon')).toBe('https://example.invalid/icon.svg');
+      // Read from the DECLARED shell.theme.wallpaper, not through a cast.
+      expect(valueOf('--pm-wallpaper')).toBe('url(https://example.invalid/bg.png)');
+
+      expect(docRoot.attrs['data-pmoves-skin']).toBe('midnight');
+      expect(docRoot.attrs['data-pmoves-icon']).toBe('https://example.invalid/icon.svg');
+
+      // Cleanup must remove every one of them: a room that leaks its skin
+      // into the next room is the failure this disposal exists to prevent.
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+      await loaded.dispose();
+
+      const removed = (
+        docRoot.style.removeProperty as unknown as { mock: { calls: string[][] } }
+      ).mock.calls.map((c) => c[0]);
+      expect(removed).toEqual(
+        expect.arrayContaining(['--pm-accent', '--pm-skin', '--pm-icon', '--pm-wallpaper']),
+      );
+      expect(docRoot.attrs['data-pmoves-skin']).toBeUndefined();
+      expect(docRoot.attrs['data-pmoves-icon']).toBeUndefined();
+    });
   });
 });

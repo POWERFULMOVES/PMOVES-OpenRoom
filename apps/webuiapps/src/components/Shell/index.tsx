@@ -24,7 +24,7 @@ import {
 import ChatPanel from '../ChatPanel';
 import AppWindow from '../AppWindow';
 import { getWindows, subscribe, openWindow, claimZIndex } from '@/lib/windowManager';
-import { getDesktopApps } from '@/lib/appRegistry';
+import { getDesktopApps, PMOVES_DYNAMIC_APP_ID_BASE } from '@/lib/appRegistry';
 import { reportUserOsAction, onOSEvent } from '@/lib/vibeContainerMock';
 import { setReportUserActions, extractCard } from '@/lib';
 import type { ExtractResult, Manifest } from '@/lib';
@@ -94,6 +94,13 @@ const Shell: React.FC = () => {
   const [extractResult, setExtractResult] = useState<ExtractResult | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [modGenerating, setModGenerating] = useState(false);
+  // P2 (openroom-realization slice 2): when a PMOVES room is loaded, hide
+  // the upstream OpenRoom stock apps (Twitter, Music Player, Diary, Album,
+  // Gomoku, FreeCell, Email, Chess, Evidence Vault, CyberNews, Aoi chatbot
+  // — all appId < PMOVES_DYNAMIC_APP_ID_BASE). The room's own apps (loaded
+  // via registerApp) still appear in the open windows. This keeps the
+  // desktop clean: the room is the experience, not the sample apps.
+  const [isPmovesRoomActive, setIsPmovesRoomActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -301,7 +308,12 @@ const Shell: React.FC = () => {
           if (loaded) await loaded.dispose();
           return;
         }
-        if (loaded) dispose = loaded.dispose;
+        if (loaded) {
+          dispose = loaded.dispose;
+          // P2: when a room is loaded, suppress the upstream stock app
+          // grid (the room's own apps appear in windows instead).
+          setIsPmovesRoomActive(true);
+        }
       } catch (err) {
         console.error('[Shell] PMOVES room load failed:', err);
       }
@@ -309,9 +321,17 @@ const Shell: React.FC = () => {
     return () => {
       cancelled = true;
       if (dispose) {
-        dispose().catch((err) => {
-          console.warn('[Shell] PMOVES room dispose failed:', err);
-        });
+        dispose()
+          .catch((err) => {
+            console.warn('[Shell] PMOVES room dispose failed:', err);
+          })
+          .finally(() => {
+            // P2: re-show the stock app grid when the room unloads (covers
+            // both the URL-change and unmount paths).
+            setIsPmovesRoomActive(false);
+          });
+      } else {
+        setIsPmovesRoomActive(false);
       }
     };
   }, []);
@@ -356,10 +376,15 @@ const Shell: React.FC = () => {
           </button>
         </div>
       )}
-      {/* Desktop with app icons */}
+      {/* Desktop with app icons. P2: when a PMOVES room is active, hide
+          the stock app grid — the room's own windows (from registerApp)
+          take their place. Outside a room, the upstream OpenRoom sample
+          apps are still available for the demo / hands-on experience. */}
       <div className={styles.desktop} data-testid="desktop">
         <div className={styles.iconGrid}>
-          {DESKTOP_APPS.map((app) => (
+          {DESKTOP_APPS.filter(
+            (app) => !isPmovesRoomActive || app.appId >= PMOVES_DYNAMIC_APP_ID_BASE,
+          ).map((app) => (
             <button
               key={app.appId}
               className={styles.appIcon}

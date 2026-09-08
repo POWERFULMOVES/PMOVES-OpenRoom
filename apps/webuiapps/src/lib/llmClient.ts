@@ -204,6 +204,11 @@ export async function chat(
   if (config.provider === 'anthropic' || config.provider === 'minimax') {
     return chatAnthropic(messages, tools, config);
   }
+  // P4: 'pmoves' is OpenAI-compatible (TensorZero exposes /v1/chat/
+  // completions with the standard schema). The existing chatOpenAI
+  // path handles it without any provider-specific branching — the
+  // model field carries the TensorZero function name (e.g.
+  // 'tensorzero::chat_default') and the gateway routes from there.
   return chatOpenAI(messages, tools, config);
 }
 
