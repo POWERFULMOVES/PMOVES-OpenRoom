@@ -11,12 +11,6 @@ ENV NODE_ENV=${ENV} \
   APP_ENVIRONMENT=${APP_ENVIRONMENT}
 
 # openroom-adapter Level B: JSON map { "<room_id>": "<served-url>" } that the
-# StubApp reads at BUILD time (Vite inlines VITE_* variables into the bundle).
-# Without it every PMOVES room renders as manifest stubs. Pass from compose:
-#   build.args.VITE_PMOVES_ROOM_IFRAMES: ${OPENROOM_ROOM_IFRAMES:-}
-ARG VITE_PMOVES_ROOM_IFRAMES=""
-ENV VITE_PMOVES_ROOM_IFRAMES=${VITE_PMOVES_ROOM_IFRAMES}
-
 WORKDIR /app
 COPY . .
 
