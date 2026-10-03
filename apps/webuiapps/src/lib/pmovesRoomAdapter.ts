@@ -35,7 +35,20 @@ export interface PmovesRoomManifest {
     theme?: { theme_id?: string; accent_color?: string; skin?: string; icon?: string };
     layout?: { default_route?: string; panels?: PmovesRoomPanel[] };
   };
-  persona?: { signature_ref?: string; role?: string[]; voice?: string; register?: string[] };
+  persona?: {
+    signature_ref?: string;
+    role?: string[];
+    voice?: string;
+    register?: string[];
+    /** Optional manifest-authored opening line; overrides the template. */
+    prologue?: string;
+    /** Optional glyph for the no-media avatar placeholder. */
+    glyph?: string;
+    /** Optional persona media; flows into CharacterMetaInfo. */
+    avatar_img_url?: string;
+    base_image_url?: string;
+    emotion_images?: Record<string, string>;
+  };
 }
 
 export interface PmovesCatalogRow {
@@ -136,6 +149,20 @@ export async function loadPmovesRoomIfPresent(): Promise<PmovesRoomManifest | nu
     console.warn('[pmovesRoomAdapter] load failed:', err);
     return null;
   }
+}
+
+
+/**
+ * Room-aware opening line for the chat window. Priority:
+ * manifest persona.prologue > manifest-driven template > null (stock mod prologue).
+ */
+export function getRoomPrologue(): string | null {
+  const room = getActiveRoom();
+  if (!room) return null;
+  if (room.persona?.prologue) return String(room.persona.prologue);
+  const name = room.display_name || room.agent_id || 'this room';
+  const desc = room.description ? ' ' + room.description : '';
+  return 'You are in ' + name + '.' + desc + ' The room is yours - what do you need?';
 }
 
 export function getActiveRoom(): PmovesRoomManifest | null {
