@@ -22,7 +22,7 @@ COPY . .
 # Optionally set a custom npm registry (e.g. China mirror: https://registry.npmmirror.com/)
 # RUN npm config set registry https://registry.npmmirror.com/
 RUN npm install -g pnpm@9
-RUN pnpm i --frozen-lockfile && pnpm store prune && rm -rf /root/.local/share/pnpm/store || true
+RUN HUSKY=0 NODE_ENV=development pnpm i --frozen-lockfile && pnpm store prune && rm -rf /root/.local/share/pnpm/store
 
 WORKDIR ${APP_PATH}
 RUN sh ./script/build.sh ${ENV}
