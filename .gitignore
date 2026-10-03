@@ -103,3 +103,4 @@ nohup.out
 # Docs (local planning & notes)
 docs/
 .worktrees/
+node_modules.host-off/
