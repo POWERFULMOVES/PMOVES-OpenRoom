@@ -72,6 +72,7 @@ import {
   resolveEmotionMedia,
   clearEmotionVideoCache,
 } from '@/lib/characterManager';
+import { getRoomPrologue } from '@/lib/pmovesRoomAdapter';
 import {
   ModManager,
   type ModCollection,
@@ -336,7 +337,7 @@ const CharacterAvatar: React.FC<{
   }, []);
 
   if (layers.length === 0) {
-    return <div className={styles.avatarPlaceholder}>{character.character_name.charAt(0)}</div>;
+    return <div className={styles.avatarPlaceholder}>{character.character_glyph ?? character.character_name.charAt(0)}</div>;
   }
 
   return (
@@ -484,7 +485,8 @@ const ChatPanel: React.FC<{
   /** Seed prologue and opening replies from active mod */
   const seedPrologue = useCallback(() => {
     const entry = getActiveModEntry(modCollection);
-    const prologue = entry.config.prologue;
+    // PMOVES room voice: manifest-authored prologue wins while a room is active.
+    const prologue = getRoomPrologue() ?? entry.config.prologue;
     if (prologue) {
       const prologueMsg: CharacterDisplayMessage = {
         id: 'prologue',
