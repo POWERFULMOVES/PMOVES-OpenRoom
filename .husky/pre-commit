@@ -1,4 +1,12 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npx lint-staged
+# lint-staged config discovery ignores only a literal "node_modules", so a
+# node_modules.host-off layout (PMOVES host clones) makes npx lint-staged walk
+# foreign package.json files (first hit: cac) and crash before linting anything.
+# Skip cleanly when no real install is present; standard checkouts unchanged.
+if [ -d node_modules ]; then
+  npx lint-staged
+else
+  echo "husky(pre-commit): no node_modules (host-off layout) - skipping lint-staged"
+fi
