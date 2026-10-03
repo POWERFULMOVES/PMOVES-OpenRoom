@@ -88,6 +88,15 @@ export interface RoomManifest {
   persona?: {
     glyph?: string;
     theme_id?: string;
+    // persona-identity lane: optional identity, voice, and media fields
+    signature_ref?: string;
+    role?: string[];
+    voice?: string;
+    register?: string[];
+    prologue?: string;
+    avatar_img_url?: string;
+    base_image_url?: string;
+    emotion_images?: Record<string, string>;
   };
 }
 
@@ -171,6 +180,7 @@ export async function loadPmovesRoomIfPresent(): Promise<LoadedRoom | null> {
 export async function loadPmovesRoom(roomId: string): Promise<LoadedRoom> {
   console.log('[pmoves-room] loading', roomId);
   const manifest = await fetchManifest(roomId);
+  activeRoomManifest = manifest;
 
   // Register each app in the manifest. We allocate a single appId per
   // manifest app; the sourceDir is left undefined because PMOVES apps are
@@ -516,3 +526,10 @@ function panelDisplayName(panel: RoomPanel): string {
 
 // Re-export the window type alias so consumers can type their refs.
 export type { WindowState };
+
+// persona-identity lane: module-level handle to the last loaded room.
+let activeRoomManifest: RoomManifest | null = null;
+
+export function getActiveRoom(): RoomManifest | null {
+  return activeRoomManifest;
+}
