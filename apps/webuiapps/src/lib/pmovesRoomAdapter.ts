@@ -533,6 +533,7 @@ let activeRoomManifest: RoomManifest | null = null;
 export function getActiveRoom(): RoomManifest | null {
   return activeRoomManifest;
 
+}
 /**
  * Room-aware opening line for the chat window. Priority:
  * manifest persona.prologue > manifest-driven template > null (stock mod prologue).
@@ -544,5 +545,4 @@ export function getRoomPrologue(): string | null {
   const name = room.display_name || room.agent_id || 'this room';
   const desc = room.description ? ' ' + room.description : '';
   return 'You are in ' + name + '.' + desc + ' The room is yours - what do you need?';
-}
 }
