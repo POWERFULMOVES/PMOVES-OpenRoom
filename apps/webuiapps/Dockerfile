@@ -2,27 +2,30 @@ FROM node:20-alpine as builder
 
 ARG ENV
 ARG SENTRY_AUTH_TOKEN
-ARG VITE_PMOVES_ROOMS_BASE_URL
-ARG VITE_PMOVES_ROOM_DEFAULT
-ARG VITE_PMOVES_ROOM_IFRAMES
 
-ARG ENV CDN_SOURCE APP_PATH BIZ_PROJECT_NAME APP_ENVIRONMENT
+ARG ENV CDN_SOURCE APP_PATH BIZ_PROJECT_NAME APP_ENVIRONMENT VITE_PMOVES_ROOM_IFRAMES VITE_PMOVES_TENSORZERO_URL VITE_PMOVES_TENSORZERO_DEFAULT_MODEL
 ENV NODE_ENV=${ENV} \
   CDN_SOURCE=${CDN_SOURCE} \
   APP_PATH=${APP_PATH} \
   BIZ_PROJECT_NAME=${BIZ_PROJECT_NAME} \
   APP_ENVIRONMENT=${APP_ENVIRONMENT} \
-  VITE_PMOVES_ROOMS_BASE_URL=${VITE_PMOVES_ROOMS_BASE_URL} \
-  VITE_PMOVES_ROOM_DEFAULT=${VITE_PMOVES_ROOM_DEFAULT} \
-  VITE_PMOVES_ROOM_IFRAMES=${VITE_PMOVES_ROOM_IFRAMES}
+  VITE_PMOVES_ROOM_IFRAMES=${VITE_PMOVES_ROOM_IFRAMES} \
+  VITE_PMOVES_TENSORZERO_URL=${VITE_PMOVES_TENSORZERO_URL} \
+  VITE_PMOVES_TENSORZERO_DEFAULT_MODEL=${VITE_PMOVES_TENSORZERO_DEFAULT_MODEL}
 
+# openroom-adapter Level B: JSON map { "<room_id>": "<served-url>" } that the
 WORKDIR /app
 COPY . .
 
 # Optionally set a custom npm registry (e.g. China mirror: https://registry.npmmirror.com/)
 # RUN npm config set registry https://registry.npmmirror.com/
 RUN npm install -g pnpm@9
-RUN HUSKY=0 NODE_ENV=development pnpm i --frozen-lockfile && pnpm store prune && rm -rf /root/.local/share/pnpm/store
+# --prod=false: NODE_ENV=${ENV} (=production) above makes pnpm skip ALL
+# devDependencies workspace-wide — vite is a devDep, so the frozen install
+# completes green while leaving the workspace without a build toolchain;
+# build.sh then fails with "Local package.json exists, but node_modules
+# missing". Production trimming happens inside `vite build` itself.
+RUN pnpm i --frozen-lockfile --prod=false && pnpm store prune && rm -rf /root/.local/share/pnpm/store || true
 
 WORKDIR ${APP_PATH}
 RUN sh ./script/build.sh ${ENV}

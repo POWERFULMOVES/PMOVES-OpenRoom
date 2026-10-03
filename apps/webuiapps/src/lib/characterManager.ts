@@ -40,8 +40,6 @@ export interface CharacterConfig {
   character_gender_desc: string;
   character_desc: string;
   character_emotion_list: readonly string[];
-  /** Optional display glyph (PMOVES room personas); falls back to name initial. */
-  character_glyph?: string;
   character_meta_info?: CharacterMetaInfo;
 }
 
@@ -60,7 +58,7 @@ export function generateCharacterId(): string {
   return `char_${Date.now()}_${_nextId++}`;
 }
 
-import { getActiveRoom, type PmovesRoomManifest } from './pmovesRoomAdapter';
+import { getActiveRoom } from './pmovesRoomAdapter';
 
 export const DEFAULT_CHARACTER_ID = 'aoi';
 
@@ -176,20 +174,6 @@ export const DEFAULT_COLLECTION: CharacterCollection = {
  * manifest so the chat window (name, avatar placeholder, LLM persona prompt)
  * belongs to the room's resident persona instead of the stock default.
  */
-
-/** Manifest persona media -> CharacterMetaInfo (undefined when the room carries none). */
-function buildRoomMetaInfo(room: PmovesRoomManifest): CharacterMetaInfo | undefined {
-  const p = room.persona;
-  if (!p) return undefined;
-  const meta: CharacterMetaInfo = {};
-  if (p.base_image_url) meta.base_image_url = p.base_image_url;
-  if (p.avatar_img_url) meta.avatar_img_url = p.avatar_img_url;
-  if (p.emotion_images && Object.keys(p.emotion_images).length) {
-    meta.emotion_images = { ...p.emotion_images };
-  }
-  return Object.keys(meta).length ? meta : undefined;
-}
-
 let _roomOverrideCache: CharacterConfig | null | undefined;
 
 function roomOverrideCharacter(): CharacterConfig | null {
@@ -212,7 +196,6 @@ function roomOverrideCharacter(): CharacterConfig | null {
   const rc: CharacterConfig = {
     id: `pmoves-room:${room.room_id}`,
     character_name: room.display_name || room.agent_id,
-    character_glyph: room.persona?.glyph || undefined,
     character_gender_desc: 'Room persona',
     character_desc: traits,
     character_emotion_list: CHARACTER_EMOTION_LIST,
