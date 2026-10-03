@@ -74,6 +74,48 @@ export function openWindow(appId: number): void {
   notify();
 }
 
+let nextPanelAppId = 9000;
+
+export interface RoomPanelOptions {
+  title: string;
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Open (or focus) a desktop window that hosts a PMOVES room panel iframe.
+ */
+export function openRoomPanelWindow(opts: RoomPanelOptions): void {
+  const existing = windows.find((w) => w.url === opts.url);
+  if (existing) {
+    existing.zIndex = ++nextZ;
+    existing.minimized = false;
+    windows = [...windows];
+    notify();
+    return;
+  }
+
+  const width = Math.round(opts.width ?? Math.max(420, window.innerWidth * 0.34));
+  const height = Math.round(opts.height ?? Math.max(360, window.innerHeight * 0.72));
+  const offset = (offsetCounter++ % 5) * 30;
+
+  const win: WindowState = {
+    appId: nextPanelAppId++,
+    title: opts.title,
+    url: opts.url,
+    x: Math.max(20, window.innerWidth - width - 40 - offset),
+    y: 40 + offset,
+    width,
+    height,
+    zIndex: ++nextZ,
+    minimized: false,
+  };
+
+  windows = [...windows, win];
+  notify();
+}
+
 export function closeWindow(appId: number): void {
   windows = windows.filter((w) => w.appId !== appId);
   notify();

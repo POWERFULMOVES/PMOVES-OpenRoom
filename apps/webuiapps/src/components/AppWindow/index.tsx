@@ -99,9 +99,56 @@ const AppWindow: React.FC<Props> = ({ win }) => {
   );
 
   const AppComp = APP_COMPONENTS[win.appId];
-  if (!AppComp) return null;
 
   if (win.minimized) return null;
+
+  if (win.url) {
+    return (
+      <div
+        className={styles.window}
+        data-testid={`app-window-${win.appId}`}
+        style={{
+          left: win.x,
+          top: win.y,
+          width: win.width,
+          height: win.height,
+          zIndex: win.zIndex,
+        }}
+        onMouseDown={() => focusWindow(win.appId)}
+      >
+        <div className={styles.titleBar} onMouseDown={handleMouseDown}>
+          <span className={styles.title}>{win.title}</span>
+          <div className={styles.actions}>
+            <button
+              className={styles.actionBtn}
+              onClick={() => minimizeWindow(win.appId)}
+              title="Minimize"
+            >
+              <Minus size={12} />
+            </button>
+            <button
+              className={`${styles.actionBtn} ${styles.closeBtn}`}
+              onClick={() => closeWindow(win.appId)}
+              title="Close"
+              data-testid={`window-close-${win.appId}`}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+        <div className={styles.content}>
+          <iframe
+            src={win.url}
+            title={win.title}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+        <div className={styles.resizeHandle} onMouseDown={handleResizeMouseDown} />
+      </div>
+    );
+  }
+
+  if (!AppComp) return null;
 
   return (
     <div

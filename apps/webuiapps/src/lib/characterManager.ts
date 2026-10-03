@@ -58,6 +58,8 @@ export function generateCharacterId(): string {
   return `char_${Date.now()}_${_nextId++}`;
 }
 
+import { getActiveRoom } from './pmovesRoomAdapter';
+
 export const DEFAULT_CHARACTER_ID = 'aoi';
 
 export const DEFAULT_CHARACTER: CharacterConfig = {
@@ -163,6 +165,47 @@ export const DEFAULT_COLLECTION: CharacterCollection = {
 };
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// PMOVES room persona override
+// ---------------------------------------------------------------------------
+
+/**
+ * When a PMOVES room is active, synthesize a CharacterConfig from the room
+ * manifest so the chat window (name, avatar placeholder, LLM persona prompt)
+ * belongs to the room's resident persona instead of the stock default.
+ */
+let _roomOverrideCache: CharacterConfig | null | undefined;
+
+function roomOverrideCharacter(): CharacterConfig | null {
+  if (_roomOverrideCache !== undefined) return _roomOverrideCache;
+  const room = getActiveRoom();
+  if (!room) {
+    _roomOverrideCache = null;
+    return null;
+  }
+  const persona = room.persona;
+  const traits = [
+    room.description,
+    persona?.voice ? `Voice: ${persona.voice}.` : '',
+    persona?.register?.length ? `Register: ${persona.register.join(', ')}.` : '',
+    persona?.role?.length ? `Role: ${persona.role.join(', ')}.` : '',
+    'You are the resident persona of this PMOVES room. Stay in character at all times.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const rc: CharacterConfig = {
+    id: `pmoves-room:${room.room_id}`,
+    character_name: room.display_name || room.agent_id,
+    character_gender_desc: 'Room persona',
+    character_desc: traits,
+    character_emotion_list: CHARACTER_EMOTION_LIST,
+    character_meta_info: {},
+  };
+  _roomOverrideCache = rc;
+  return rc;
+}
+
+// ---------------------------------------------------------------------------
 // Persistence API
 // ---------------------------------------------------------------------------
 
@@ -195,6 +238,9 @@ function migrateOldFormat(): CharacterCollection | null {
 
 export async function loadCharacterCollection(): Promise<CharacterCollection | null> {
   try {
+  // PMOVES room persona wins while a room manifest is active.
+  const rc = roomOverrideCharacter();
+  if (rc) return { activeId: rc.id, items: { [rc.id]: rc } };
     const res = await fetch(CHARACTER_API);
     if (res.ok) {
       const data = await res.json();
@@ -211,6 +257,9 @@ export async function loadCharacterCollection(): Promise<CharacterCollection | n
 
 export function loadCharacterCollectionSync(): CharacterCollection | null {
   try {
+  // PMOVES room persona wins while a room manifest is active.
+  const rc = roomOverrideCharacter();
+  if (rc) return { activeId: rc.id, items: { [rc.id]: rc } };
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
