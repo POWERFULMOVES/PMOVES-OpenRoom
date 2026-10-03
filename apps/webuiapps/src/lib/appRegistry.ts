@@ -46,7 +46,7 @@ interface AppStaticDef {
   defaultSize?: { width: number; height: number };
 }
 
-const APP_STATIC_REGISTRY: AppStaticDef[] = [
+let APP_STATIC_REGISTRY: AppStaticDef[] = [
   { appId: 1, appName: 'os', route: '/home', displayName: 'OS' },
   {
     appId: 2,
@@ -509,4 +509,82 @@ export function executeListApps(): string {
     '- CLOSE_APP: close an app (params: app_id)\n' +
     '- SET_WALLPAPER: change wallpaper (params: wallpaper_url)'
   );
+}
+
+// ============ PMOVES room adapter (openroom-adapter lane, 2026-07-24) ============
+//
+// The static registry above is fixed at build time. PMOVES rooms, however, are
+// data-driven: each `pmoves/config/rooms/<id>.json` declares its own
+// `apps[]` + `shell.layout.panels[]`. The room adapter (see pmovesRoomAdapter.ts)
+// fetches a manifest at boot and calls `registerApp()` for each app in it.
+//
+// The adapter reserves appIds 1000+ to avoid collision with the static 1-14
+// range. Lookup functions above scan APP_STATIC_REGISTRY which now includes
+// dynamically registered apps, so no other changes are needed.
+
+/** ID range reserved for runtime-registered apps (room manifests). */
+export const PMOVES_DYNAMIC_APP_ID_BASE = 1000;
+let _pmovesNextAppId = PMOVES_DYNAMIC_APP_ID_BASE;
+let _pmovesRegisteredCount = 0;
+
+/**
+ * Register a runtime app with the desktop. The app gets the next available
+ * PMOVES_DYNAMIC_APP_ID_BASE+ id. Returns the assigned id.
+ *
+ * The app's `route` is treated as the internal route — when windowManager
+ * opens this app, it routes to <basename><route> (the `sourceDir` is unused
+ * because PMOVES apps are server-rendered stubs, not built-in source dirs).
+ * The `displayName`, `icon`, `color`, and `defaultSize` follow the same
+ * convention as static apps.
+ */
+export function registerApp(def: {
+  appName: string;
+  route: string;
+  displayName: string;
+  icon?: string;
+  color?: string;
+  defaultSize?: { width: number; height: number };
+}): number {
+  const appId = _pmovesNextAppId++;
+  const entry: AppStaticDef = {
+    appId,
+    appName: def.appName,
+    route: def.route,
+    displayName: def.displayName,
+    sourceDir: undefined, // no built-in source dir; render via StubApp
+    icon: def.icon || 'Circle',
+    color: def.color || '#7C3AED',
+    defaultSize: def.defaultSize || { width: 600, height: 400 },
+  };
+  APP_STATIC_REGISTRY = [...APP_STATIC_REGISTRY, entry];
+  _pmovesRegisteredCount++;
+  return appId;
+}
+
+/**
+ * Look up an app by its internal route. Returns the AppStaticDef or undefined.
+ * Used by the room adapter to map manifest apps[].route → appId for window
+ * composition.
+ */
+export function getAppByRoute(route: string): AppStaticDef | undefined {
+  return APP_STATIC_REGISTRY.find((a) => a.route === route);
+}
+
+/**
+ * Number of PMOVES apps currently registered (for diagnostics).
+ */
+export function getPmovesRegisteredCount(): number {
+  return _pmovesRegisteredCount;
+}
+
+/**
+ * Clear all PMOVES-registered apps. Used on room exit to reset state.
+ * Preserves the static (1-14) apps.
+ */
+export function clearPmovesApps(): void {
+  APP_STATIC_REGISTRY = APP_STATIC_REGISTRY.filter(
+    (a) => a.appId < PMOVES_DYNAMIC_APP_ID_BASE,
+  );
+  _pmovesNextAppId = PMOVES_DYNAMIC_APP_ID_BASE;
+  _pmovesRegisteredCount = 0;
 }

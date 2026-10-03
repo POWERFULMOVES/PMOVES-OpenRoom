@@ -398,6 +398,7 @@ const config = ({ mode }: ConfigEnv): UserConfigExport => {
     llmProxyPlugin(),
     jsonFilePlugin('characters', '/api/characters', CHARACTERS_FILE),
     jsonFilePlugin('mods', '/api/mods', MODS_FILE),
+    pmovesRoomsPlugin(),
     appGeneratorPlugin({
       llmConfigFile: LLM_CONFIG_FILE,
       projectRoot: resolve(__dirname, '../..'),
@@ -458,6 +459,23 @@ const config = ({ mode }: ConfigEnv): UserConfigExport => {
     server: {
       host: true,
       port: 3000,
+      // PMOVES room adapter (openroom-adapter lane, 2026-07-24): proxy
+      // /api/p7/* to the local p7-room-orchestrator so the room
+      // adapter's session open/close calls reach the live control plane.
+      // In prod (docker-compose), nginx does the same proxying.
+      proxy: {
+        '/api/p7': {
+          target: process.env.PMOVES_P7_URL || 'http://127.0.0.1:8120',
+          changeOrigin: true,
+          // Forward the bearer token the adapter set on the request.
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              const auth = process.env.PMOVES_P7_TOKEN;
+              if (auth) proxyReq.setHeader('Authorization', `Bearer ${auth}`);
+            });
+          },
+        },
+      },
     },
     define: {
       __APP__: JSON.stringify(env.APP_ENVIRONMENT),
@@ -492,5 +510,91 @@ const config = ({ mode }: ConfigEnv): UserConfigExport => {
     },
   };
 };
+
+/**
+ * PMOVES room manifests plugin (openroom-adapter lane, 2026-07-24).
+ *
+ * Serves /api/rooms/<id>.json from the monorepo's
+ * pmoves/config/rooms/ directory so the room adapter can fetch manifests
+ * in local dev without the docker-compose nginx reverse proxy.
+ *
+ * The catalog (pmoves/config/rooms/catalog.json) maps each `room_id` to
+ * its `manifest` filename — these are not always identical (e.g.
+ * `room_id: "demo.room.rehearsal"` -> `manifest: "demo.room.json"`). The
+ * plugin reads the catalog at boot and uses the manifest mapping to serve
+ * the right file under the `/api/rooms/<room_id>.json` URL.
+ *
+ * Path resolution:
+ *   1. PMOVES_ROOMS_DIR env var (set by the operator or docker-compose)
+ *   2. <repo-root>/pmoves/config/rooms (monorepo convention)
+ *
+ * The regex match enforces [a-z0-9._-]+ to deny path traversal, mirroring
+ * the nginx config in default.conf.
+ */
+function pmovesRoomsPlugin(): Plugin {
+  return {
+    name: 'pmoves-rooms',
+    configureServer(server) {
+      const envDir = process.env.PMOVES_ROOMS_DIR;
+      const fallback = resolve(__dirname, '..', '..', '..', 'pmoves', 'config', 'rooms');
+      const roomsDir = envDir && fs.existsSync(envDir) ? envDir : fallback;
+      const ROOM_ID_RE = /^[a-z0-9._-]+$/i;
+
+      // Build the room_id -> manifest filename map from catalog.json.
+      const catalogPath = join(roomsDir, 'catalog.json');
+      let roomMap: Record<string, string> = {};
+      try {
+        const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf-8'));
+        for (const entry of catalog.rooms || []) {
+          if (entry.room_id && entry.manifest) {
+            roomMap[entry.room_id] = entry.manifest;
+          }
+        }
+      } catch (err) {
+        console.warn('[pmoves-rooms] could not read catalog:', String(err));
+      }
+
+      server.middlewares.use('/api/rooms', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        if (req.method !== 'GET') {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: 'method not allowed' }));
+          return;
+        }
+        // URL is /api/rooms/<id>.json; extract the id.
+        const url = (req.url || '/').split('?')[0];
+        const m = url.match(/^\/([^/]+)\.json$/);
+        if (!m) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'expected /api/rooms/<id>.json' }));
+          return;
+        }
+        const roomId = m[1];
+        if (!ROOM_ID_RE.test(roomId)) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'invalid room id format' }));
+          return;
+        }
+        // Resolve via catalog map, fall back to "<room_id>.json" for
+        // manifests that happen to share the room_id as the filename.
+        const manifestName = roomMap[roomId] || `${roomId}.json`;
+        const filePath = join(roomsDir, manifestName);
+        if (!fs.existsSync(filePath)) {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: `manifest not found: ${roomId} (looked for ${manifestName})` }));
+          return;
+        }
+        try {
+          res.writeHead(200);
+          res.end(fs.readFileSync(filePath, 'utf-8'));
+        } catch (err) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+      });
+    },
+  };
+}
 
 export default config;

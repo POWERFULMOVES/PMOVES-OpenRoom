@@ -1,3 +1,29 @@
+<!-- PMOVES.AI fork banner — keep above the upstream README. -->
+<div align="center">
+
+# PMOVES-OpenRoom
+
+**The PMOVES.AI fork of [MiniMax-AI/OpenRoom](https://github.com/MiniMax-AI/OpenRoom) (VibeApps)** — the browser-desktop **host** where the PMOVES **a2ui shell + agents** run. This is the **Mavis-5090 room-experience lane** in the [PMOVES.AI](https://github.com/POWERFULMOVES/PMOVES.AI) monorepo.
+
+</div>
+
+> **You are on the `PMOVES.AI-Edition-Hardened` branch** — this is the customized branch. `main` intentionally tracks upstream unchanged so upstream syncs stay clean; all PMOVES work lives here.
+
+### What PMOVES added on top of upstream
+
+- **Room-experience adapter** — `apps/webuiapps/src/lib/pmovesRoomAdapter.ts`: loads PMOVES **room manifests** from the monorepo (`pmoves/config/rooms/catalog.json`), applies **P7 session + stage discipline** (rehearsal → live → review → archive), and renders each room as an OpenRoom desktop.
+- **Dev/edge serving** — a Vite plugin serves `/api/rooms/<room_id>.json` from the monorepo's room catalog and proxies `/api/p7/*` to the P7 room orchestrator (nginx does the same in prod). This is how the desktop **reads the repo's rooms** instead of the upstream demo apps.
+- **Hardening** — see [`HARDENING.md`](./HARDENING.md).
+- **Agent context** — see [`CLAUDE.md`](./CLAUDE.md) for how this fork fits the PMOVES rooms-on-a-stage model.
+
+### Where it fits
+
+PMOVES models every UI surface as a **room on a stage** (`pmoves/config/rooms/*.json`, P7 stage manager). OpenRoom is the browser-desktop that opens those rooms for the operator — e.g. the persona living-doc room (`persona.room.livingdoc`). The same room manifest also drives the public static site; the operator desktop here stays private.
+
+---
+
+<sub>Upstream project documentation (MiniMax OpenRoom / VibeApps, MIT) follows below, preserved as-is.</sub>
+
 # VibeApps
 
 [中文](./README_zh.md) | English

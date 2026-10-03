@@ -122,3 +122,46 @@ export function resizeWindow(appId: number, width: number, height: number): void
     notify();
   }
 }
+
+/**
+ * Open a window at a specific position and size. Used by the PMOVES room
+ * adapter to compose the desktop from a room manifest's shell.layout.panels[].
+ * If the window already exists, focuses it.
+ */
+export function openWindowAt(
+  appId: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const existing = windows.find((w) => w.appId === appId);
+  if (existing) {
+    existing.zIndex = ++nextZ;
+    existing.minimized = false;
+    windows = [...windows];
+    notify();
+    return;
+  }
+  const win: WindowState = {
+    appId,
+    title: getAppDisplayName(appId),
+    x: Math.max(0, x),
+    y: Math.max(0, y),
+    width: Math.max(300, width),
+    height: Math.max(200, height),
+    zIndex: ++nextZ,
+    minimized: false,
+  };
+  windows = [...windows, win];
+  notify();
+}
+
+/**
+ * Close all PMOVES-registered windows. Used on room exit. Static-app windows
+ * (appId < 1000) are preserved.
+ */
+export function closeAllPmovesWindows(pmovesAppIdBase: number = 1000): void {
+  windows = windows.filter((w) => w.appId < pmovesAppIdBase);
+  notify();
+}
